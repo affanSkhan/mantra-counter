@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:percent_indicator/percent_indicator.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   runApp(const MyApp());
@@ -14,9 +16,23 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Mantra Counter',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        textTheme: GoogleFonts.openSansTextTheme(),
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
       ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.teal,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        textTheme: GoogleFonts.openSansTextTheme(ThemeData.dark().textTheme),
+      ),
+      themeMode: ThemeMode.system,
       home: const MyHomePage(),
     );
   }
@@ -173,106 +189,240 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+    final progress = _target > 0 ? (_count / _target).clamp(0.0, 1.0) : 0.0;
+
     return Scaffold(
+      backgroundColor: isDark ? null : const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Mantra Counter'),
-        centerTitle: true,
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Count: $_count',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: _targetReached ? Colors.green : null,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Target: $_target',
-                  style: TextStyle(
-                    fontSize: 22,
-                    color: _targetReached ? Colors.green : Colors.grey,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                if (_targetReached) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    '🎉 Target Achieved!',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.green,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: ElevatedButton(
-                    onPressed: (_target <= 0 || _targetReached) ? null : _incrementCounter,
-                    style: ElevatedButton.styleFrom(
-                      textStyle: const TextStyle(fontSize: 24),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(_targetReached ? 'Target Reached!' : 'Count'),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _setTargetDialog,
-                          style: ElevatedButton.styleFrom(
-                            textStyle: const TextStyle(fontSize: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('Set Target'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _resetCounter,
-                          style: ElevatedButton.styleFrom(
-                            textStyle: const TextStyle(fontSize: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          child: const Text('Reset'),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+        title: Text(
+          '🧘 Mantra Counter',
+          style: GoogleFonts.openSans(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
           ),
         ),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: colorScheme.onSurface,
+      ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Animated Count Display
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.shadow.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Current Count',
+                            style: GoogleFonts.openSans(
+                              fontSize: 16,
+                              color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, animation) {
+                              return ScaleTransition(
+                                scale: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              '$_count',
+                              key: ValueKey(_count),
+                              style: GoogleFonts.openSans(
+                                fontSize: 64,
+                                fontWeight: FontWeight.bold,
+                                color: _targetReached ? Colors.green : colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Target: $_target',
+                            style: GoogleFonts.openSans(
+                              fontSize: 18,
+                              color: _targetReached ? Colors.green : colorScheme.onSurface.withValues(alpha: 0.8),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Progress Indicator
+                    if (_target > 0) ...[
+                      CircularPercentIndicator(
+                        radius: 80.0,
+                        lineWidth: 12.0,
+                        animation: true,
+                        animationDuration: 500,
+                        percent: progress,
+                        center: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${(progress * 100).toInt()}%',
+                              style: GoogleFonts.openSans(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                            Text(
+                              'Complete',
+                              style: GoogleFonts.openSans(
+                                fontSize: 12,
+                                color: colorScheme.onSurface.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                        circularStrokeCap: CircularStrokeCap.round,
+                        progressColor: _targetReached ? Colors.green : Colors.teal[400],
+                        backgroundColor: colorScheme.outline.withValues(alpha: 0.2),
+                      ),
+                      const SizedBox(height: 32),
+                    ] else
+                      const SizedBox(height: 20),
+
+                    // Target Achievement Message
+                    if (_targetReached) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.celebration, color: Colors.green, size: 24),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Target Achieved!',
+                              style: GoogleFonts.openSans(
+                                fontSize: 18,
+                                color: Colors.green,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+
+                    // Main Count Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 72,
+                      child: ElevatedButton.icon(
+                        onPressed: (_target <= 0 || _targetReached) ? null : _incrementCounter,
+                        icon: const Icon(Icons.add_circle_outline, size: 28),
+                        label: Text(
+                          _targetReached ? 'Target Reached!' : 'Count',
+                          style: GoogleFonts.openSans(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _targetReached ? Colors.green : Colors.teal[400],
+                          foregroundColor: Colors.white,
+                          elevation: 8,
+                          shadowColor: Colors.teal.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Secondary Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _setTargetDialog,
+                            icon: const Icon(Icons.flag_outlined, size: 20),
+                            label: Text(
+                              'Set Target',
+                              style: GoogleFonts.openSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: colorScheme.outline),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _resetCounter,
+                            icon: const Icon(Icons.refresh_outlined, size: 20),
+                            label: Text(
+                              'Reset',
+                              style: GoogleFonts.openSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: colorScheme.outline),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
